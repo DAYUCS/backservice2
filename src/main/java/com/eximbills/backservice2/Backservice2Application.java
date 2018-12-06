@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,18 +60,26 @@ public class Backservice2Application {
     }
 
     @PutMapping("/balance/{id}/{amount}/{transactionId}")
-    @ResponseBody
     @Transactional
-    public Entry postEntry(@PathVariable("id") Long id, @PathVariable("amount") float amount,
-                           @PathVariable("transactionId") String transactionId) {
-        Balance balance = balanceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("No balance found with id=" + id));
-        if (balance.getHoldFlag().equals("Y")) throw new ResourceLockedException();
+    public ResponseEntity<Entry> postEntry(@PathVariable("id") Long id, @PathVariable("amount") float amount,
+                                           @PathVariable("transactionId") String transactionId) {
+        Balance balance;
+        try {
+            balance = balanceRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("No balance found with id=" + id));
+        } catch (ResourceNotFoundException e) {
+            logger.debug(e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+        }
+        if (balance.getHoldFlag().equals("Y")) {
+            logger.debug("Balance is hold by other people");
+            return new ResponseEntity<>(null, HttpStatus.LOCKED);
+        }
         balance.setBalance(balance.getBalance() + amount);
         balance.setHoldFlag("Y");
         Entry entry = new Entry(transactionId, amount, balance);
         balanceRepository.save(balance);
-        return entryRepository.save(entry);
+        return new ResponseEntity<>(entryRepository.save(entry), HttpStatus.OK);
     }
 
     @PutMapping("/balance/{id}")
