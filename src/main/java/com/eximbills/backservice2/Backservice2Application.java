@@ -75,6 +75,10 @@ public class Backservice2Application {
             logger.debug("Balance is hold by other people");
             return new ResponseEntity<>(null, HttpStatus.LOCKED);
         }
+        if ((balance.getBalance() + amount) < 0) {
+            logger.debug("Balance is not enough for withdraw");
+            return new ResponseEntity<>(null, HttpStatus.CONFLICT);
+        }
         balance.setBalance(balance.getBalance() + amount);
         balance.setHoldFlag("Y");
         Entry entry = new Entry(transactionId, amount, balance);
