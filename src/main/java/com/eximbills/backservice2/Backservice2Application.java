@@ -89,26 +89,36 @@ public class Backservice2Application {
     @PutMapping("/balance/{id}")
     @ResponseBody
     @Transactional
-    public Balance unHold(@PathVariable("id") Long id) {
-        Balance balance = balanceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("No balance found with id=" + id));
-        balance.setHoldFlag("N");
-        return balanceRepository.save(balance);
+    public ResponseEntity<Balance> unHold(@PathVariable("id") Long id) {
+        try {
+            Balance balance = balanceRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("No balance found with id=" + id));
+            balance.setHoldFlag("N");
+            return new ResponseEntity<>(balanceRepository.save(balance), HttpStatus.OK);
+        } catch (ResourceNotFoundException e) {
+            logger.debug(e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+        }
     }
 
     @PutMapping("/balance/{id}/{transactionId}")
     @ResponseBody
     @Transactional
-    public Entry reverseEntry(@PathVariable("id") Long id,
-                              @PathVariable("transactionId") String transactionId) {
-        Entry entry = entryRepository.findById(transactionId)
-                .orElseThrow(() -> new ResourceNotFoundException("No entry found with id=" + id));
-        Balance balance = entry.getBalance();
-        balance.setBalance(balance.getBalance() - entry.getEntryAmount());
-        balance.setHoldFlag("N");
-        entry.setEntryAmount(0);
-        balanceRepository.save(balance);
-        return entryRepository.save(entry);
+    public ResponseEntity<Entry> reverseEntry(@PathVariable("id") Long id,
+                                              @PathVariable("transactionId") String transactionId) {
+        try {
+            Entry entry = entryRepository.findById(transactionId)
+                    .orElseThrow(() -> new ResourceNotFoundException("No entry found with id=" + id));
+            Balance balance = entry.getBalance();
+            balance.setBalance(balance.getBalance() - entry.getEntryAmount());
+            balance.setHoldFlag("N");
+            entry.setEntryAmount(0);
+            balanceRepository.save(balance);
+            return new ResponseEntity<>(entryRepository.save(entry), HttpStatus.OK);
+        } catch (ResourceNotFoundException e) {
+            logger.debug(e.getMessage());
+            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+        }
     }
 
 }
